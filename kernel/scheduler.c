@@ -1,33 +1,39 @@
-#include "process.h"
+#include <stddef.h>
+#include <scheduler.h>
+#include <process.h>
 
-extern pcb_t *ready_queue;
+extern void process_switch(uint32_t *old_esp, uint32_t new_esp);
+
 extern pcb_t *current_process;
+extern pcb_t *ready_queue;
+
+void scheduler_init(void) {
+}
 
 void scheduler_tick(void) {
-    if (!ready_queue) return;
-    
-    if (!current_process) {
-        current_process = ready_queue;
-        current_process->state = RUNNING;
-        ready_queue = ready_queue->next;
-        current_process->next = 0;
-        return;
-    }
-    
-    if (current_process->state == RUNNING) {
+    if (ready_queue == NULL) return;
+
+    pcb_t *old_process = current_process;
+
+    if (current_process && current_process->state == RUNNING) {
         current_process->state = READY;
-        pcb_t *temp = ready_queue;
-        if (!temp) {
-            ready_queue = current_process;
-        } else {
-            while (temp->next) temp = temp->next;
-            temp->next = current_process;
+        pcb_t *last = ready_queue;
+        while (last->next != NULL) {
+            last = last->next;
         }
-        current_process = 0;
+        last->next = current_process;
+        current_process->next = NULL;
     }
-    
+
     current_process = ready_queue;
-    current_process->state = RUNNING;
     ready_queue = ready_queue->next;
-    current_process->next = 0;
+    current_process->state = RUNNING;
+
+    if (old_process != current_process && old_process != NULL) {
+        process_switch(&old_process->esp, current_process->esp);
+    }
+}
+
+void schedule(void) {
+    scheduler_tick();
 }
