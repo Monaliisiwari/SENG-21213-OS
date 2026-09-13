@@ -24,6 +24,8 @@
 #include "vga.h"
 #include "keyboard.h"
 #include "../include/types.h"
+#include <kernel/pmm.h>
+#include <kernel/vmm.h>
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -215,6 +217,8 @@ void kernel_main(void) {
     kb_init();
     print_splash();
     shell_run();
+pmm_init();
+vmm_init();
 
     /* Should never reach here */
     __asm__ __volatile__("hlt");
