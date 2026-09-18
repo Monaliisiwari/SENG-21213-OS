@@ -27,10 +27,11 @@ void kernel_main(void) {
     vga_clear(VGA_BLACK);
     vga_puts("Starting multitasking...\n");
 
-    scheduler_init();
-    process_create(task_a);
-    process_create(task_b);
+    process_init();
+scheduler_init();
 
+process_create(task_a);
+process_create(task_b);
     idt_init();
     pit_init(100);
 
