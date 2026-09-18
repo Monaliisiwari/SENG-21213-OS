@@ -1,6 +1,7 @@
 #include "idt.h"
 #include "vga.h"
 #include <kernel/scheduler.h>
+#include <kernel/process.h>
 
 static struct idt_entry idt[256];
 static struct idt_ptr   idtp;
@@ -19,21 +20,47 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
 
 extern void irq0_stub(void);
 
-void irq0_handler(void) {
-    vga_puts(".");
-    scheduler_tick();
-    outb(0x20, 0x20);
-}
+/*
+ * Called from irq0_stub().
+ *
+ * frame points to the saved DS value at the bottom of
+ * the interrupt context frame.
+ *
+ * Returns the ESP of the process that should resume.
+ */
 
+uint32_t irq0_handler(uint32_t *frame) {
+
+    if (current_process != NULL) {
+        current_process->esp = (uint32_t)frame;
+    }
+
+    scheduler_tick();
+
+    outb(0x20, 0x20);
+
+    if (current_process != NULL) {
+        return current_process->esp;
+    }
+
+    return (uint32_t)frame;
+}
 void pic_remap(void) {
     outb(0x20, 0x11);
     outb(0xA0, 0x11);
+
     outb(0x21, 0x20);
     outb(0xA1, 0x28);
+
     outb(0x21, 0x04);
     outb(0xA1, 0x02);
+
     outb(0x21, 0x01);
     outb(0xA1, 0x01);
+
+    /*
+     * Enable only IRQ0 on the master PIC.
+     */
     outb(0x21, 0xFE);
     outb(0xA1, 0xFF);
 }
@@ -44,6 +71,9 @@ void idt_init(void) {
 
     pic_remap();
 
+    /*
+     * IRQ0 -> interrupt vector 32.
+     */
     idt_set_gate(32, (uint32_t)irq0_stub, 0x08, 0x8E);
 
     __asm__ __volatile__("lidt %0" : : "m"(idtp));
@@ -51,7 +81,9 @@ void idt_init(void) {
 
 void pit_init(uint32_t frequency) {
     uint32_t divisor = 1193180 / frequency;
+
     outb(0x43, 0x36);
+
     outb(0x40, (uint8_t)(divisor & 0xFF));
     outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 }

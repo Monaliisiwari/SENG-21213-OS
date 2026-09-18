@@ -1,20 +1,22 @@
-global process_switch
 [BITS 32]
 
+global process_switch
+
 process_switch:
-    push ebp
-    push ebx
-    push esi
-    push edi
 
-    mov ecx, [esp + 20]   ; old_sp_ptr
-    mov edx, [esp + 24]   ; new_sp
+    ; EAX = ESP of the process to resume.
+    mov esp, eax
 
-    mov [ecx], esp
-    mov esp, edx
+    ; Restore saved DS.
+    pop eax
 
-    pop edi
-    pop esi
-    pop ebx
-    pop ebp
-    ret
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    ; Restore EDI, ESI, EBP, ESP, EBX, EDX, ECX, EAX.
+    popa
+
+    ; Restore EIP, CS and EFLAGS.
+    iret

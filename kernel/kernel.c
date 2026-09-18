@@ -24,14 +24,16 @@ void task_b(void) {
 void kernel_main(void) {
     vga_init();
     kb_init();
+
     vga_clear(VGA_BLACK);
     vga_puts("Starting multitasking...\n");
 
     process_init();
-scheduler_init();
+    scheduler_init();
 
-process_create(task_a);
-process_create(task_b);
+    process_create(task_a);
+    process_create(task_b);
+
     idt_init();
     pit_init(100);
 

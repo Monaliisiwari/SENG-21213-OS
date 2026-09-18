@@ -1,10 +1,16 @@
 #include <kernel/process.h>
-#include <kernel/pmm.h>
-
 #define MAX_PROCESSES 10
 #define STACK_SIZE 4096
 
 static pcb_t process_table[MAX_PROCESSES];
+
+/*
+ * Each process gets its own kernel stack.
+ * These are statically allocated so process stacks never overlap
+ * with the kernel or low physical memory.
+ */
+static uint8_t process_stacks[MAX_PROCESSES][STACK_SIZE]
+    __attribute__((aligned(16)));
 
 pcb_t *current_process = NULL;
 pcb_t *ready_queue = NULL;
@@ -45,29 +51,58 @@ int process_create(void (*entry)(void)) {
 
     pcb_t *pcb = &process_table[idx];
 
-    void *stack_frame = pmm_alloc_frame();
-
-    if (stack_frame == 0) {
-        return -1;
-    }
-
     pcb->pid = next_pid++;
     pcb->state = PROCESS_READY;
     pcb->next = NULL;
 
-    pcb->kernel_stack = (uint32_t)stack_frame + STACK_SIZE;
+    uint32_t stack_top =
+        (uint32_t)(process_stacks[idx] + STACK_SIZE);
 
-    uint32_t *stack = (uint32_t *)pcb->kernel_stack;
+    pcb->kernel_stack = stack_top;
 
-    *(--stack) = (uint32_t)entry;
-    *(--stack) = 0;
-    *(--stack) = 0;
-    *(--stack) = 0;
-    *(--stack) = 0;
+    /*
+     * Build a fake interrupt frame.
+     *
+     * irq0_stub expects the stack to contain:
+     *
+     *   saved DS
+     *   EDI
+     *   ESI
+     *   EBP
+     *   saved ESP
+     *   EBX
+     *   EDX
+     *   ECX
+     *   EAX
+     *   EIP
+     *   CS
+     *   EFLAGS
+     *
+     * When the scheduler first selects this process,
+     * process_switch() restores this frame and iret enters
+     * the process at its entry function.
+     */
+
+    uint32_t *stack = (uint32_t *)stack_top;
+
+    *(--stack) = 0x202;              /* EFLAGS: interrupts enabled */
+    *(--stack) = 0x08;               /* CS */
+    *(--stack) = (uint32_t)entry;    /* EIP */
+
+    *(--stack) = 0;                  /* EAX */
+    *(--stack) = 0;                  /* ECX */
+    *(--stack) = 0;                  /* EDX */
+    *(--stack) = 0;                  /* EBX */
+    *(--stack) = 0;                  /* saved ESP */
+    *(--stack) = 0;                  /* EBP */
+    *(--stack) = 0;                  /* ESI */
+    *(--stack) = 0;                  /* EDI */
+
+    *(--stack) = 0x10;               /* saved DS */
 
     pcb->esp = (uint32_t)stack;
 
-    /* Add the new process to the ready queue. */
+    /* Add process to the ready queue. */
     if (ready_queue == NULL) {
         ready_queue = pcb;
     } else {
@@ -84,5 +119,7 @@ int process_create(void (*entry)(void)) {
 }
 
 void process_yield(void) {
-    /* Scheduling is currently driven by the timer interrupt. */
+    /*
+     * Preemptive scheduling is driven by the PIT timer interrupt.
+     */
 }
