@@ -22,7 +22,7 @@ build/%.o: kernel/%.asm
 	$(ASM) -f elf32 $< -o $@
 
 build/kernel.elf: $(C_OBJS) $(ASM_OBJS)
-	$(LD) $(LDFLAGS) $(C_OBJS) $(ASM_OBJS) -o $@
+	$(LD) $(LDFLAGS) build/kernel_entry.o $(C_OBJS) build/switch.o build/irq_stub.o -o $@
 
 build/kernel.bin: build/kernel.elf
 	objcopy -O binary build/kernel.elf build/kernel.bin

@@ -32,7 +32,7 @@ start:
 
 ; ---------------------------------------------------------------------------
 ; Load kernel: read sectors 2..65 from disk into memory at 0x1000:0x0000
-; This gives us 64 × 512 = 32 768 bytes for the kernel (Stage 0)
+; This gives us 9 × 512 = 4 608 bytes for the kernel (Stage 0)
 ; ---------------------------------------------------------------------------
 load_kernel:
     mov  bx, 0x1000        ; ES:BX = 0x10000 (kernel load address)
@@ -40,7 +40,7 @@ load_kernel:
     xor  bx, bx
 
     mov  ah, 0x02          ; BIOS read sectors
-    mov  al, 64            ; Number of sectors to read
+    mov  al, 9            ; Number of sectors to read
     mov  ch, 0             ; Cylinder 0
     mov  cl, 2             ; Start from sector 2 (sector 1 is MBR)
     mov  dh, 0             ; Head 0

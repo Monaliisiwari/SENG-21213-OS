@@ -30,7 +30,7 @@ void scheduler_tick(void) {
     current_process->state = RUNNING;
 
     if (old_process != current_process && old_process != NULL) {
-        process_switch(&old_process->esp, current_process->esp);
+    /* Context switching from inside the IRQ handler is not implemented yet. */
     }
 }
 
